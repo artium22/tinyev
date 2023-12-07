@@ -1,0 +1,3 @@
+option('debug_mode', type: 'boolean', value: false)
+option('tests', type: 'boolean', value: true)
+option('dynamic_load', type: 'boolean', value: false)

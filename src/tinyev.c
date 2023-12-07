@@ -72,17 +72,19 @@ bool tinyev_waiting()
     return (watched_fds != 0 || watched_timers != 0);
 }
 
+#ifdef DEBUG
 static void print_list()
 {
     struct timer_obj *tmp_t = timers;
 
-    while(tmp_t) {
+    while (tmp_t) {
         SLOG("p %p, to %lu, next %p ->", tmp_t, tmp_t->to_msec, tmp_t->next);
         tmp_t = tmp_t->next;
     }
 
     SLOG("NULL\n# of timers %d\n", watched_timers);
 }
+#endif
 
 static void insert_timer(struct timer_obj *td)
 {
@@ -100,34 +102,36 @@ static void insert_timer(struct timer_obj *td)
         timers = td;    // New first
     td->next = tmp_t;
 
+#ifdef DEBUG
     print_list();
+#endif
 }
 
 static void* do_add_timer(int sec, int msec, void* data, bool per, event_cb cb)
 {
-    struct timer_obj *td = calloc(1, sizeof(struct timer_obj));
+    struct timer_obj *to = calloc(1, sizeof(struct timer_obj));
     uint64_t now = time_in_millisecs();
 
-    if (!td) {
+    if (!to) {
         return NULL;
     }
 
-    td->to_msec = now + msec + sec*1000;    // Total time in msecs
-    td->to_user_data.cb = cb;
-    td->to_user_data.data = data;
+    to->to_msec = now + msec + sec*1000;    // Total time in msecs
+    to->to_user_data.cb = cb;
+    to->to_user_data.data = data;
 
-    SLOG("Adding timer %p, timeout in %lu milli\n", td, td->to_msec);
-    
+    SLOG("Adding timer %p, timeout in %lu milli\n", to, to->to_msec);
+
     if (per) {
         /* Periodic, save the times. */
-        td->msec = msec;
-        td->sec = sec;
+        to->msec = msec;
+        to->sec = sec;
     }
 
-    insert_timer(td);
+    insert_timer(to);
     watched_timers++;
 
-    return td;
+    return to;
 }
 
 static void check_timers()
@@ -156,7 +160,9 @@ static void check_timers()
             SLOG("Released timer %p\n", prev);
             free(prev);
             watched_timers--;
+#ifdef DEBUG
             print_list();
+#endif
         }
     }
 }
@@ -255,6 +261,10 @@ void tinyev_remove_fd(int fd, void *evobj)
 
 int tinyev_init()
 {
+#ifdef DEBUG
+    log_init(DEFAULT_LOG);
+#endif
+
     if (epoll_fd != -1) {
         SLOG("Already initialized");
         return TINYEV_ERR_OK;
@@ -266,9 +276,7 @@ int tinyev_init()
         return TINYEV_ERR_INIT;
     }
 
-#ifdef DEBUG
-    log_init(DEFAULT_LOG);
-#endif
+    SLOG("Tinyev is ready");
 
     return TINYEV_ERR_OK;
 }
@@ -283,4 +291,7 @@ void tinyev_cleanup()
         close(epoll_fd);
         epoll_fd = -1;
     }
+#ifdef DEBUG
+    log_cleanup();
+#endif
 }

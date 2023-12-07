@@ -11,7 +11,7 @@
 
 #include "tinyev.h"
 
-#define BUF_SIZE 4096
+#define BUF_SIZE 2048
 
 struct event_data {
     int fd;
