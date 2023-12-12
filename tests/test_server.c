@@ -7,12 +7,12 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include "tests.h"
 #include "tinyev.h"
 
 #define MIN_PORT 1024
 #define MAX_PORT 65535
 #define BUF_SIZE 1024
-#define DEFAULT_PORT 1234
 
 #define CMD "cmd: "
 
@@ -27,6 +27,8 @@
 
 struct timer_data {
     char *msg;
+    int len;
+    int fd;
 };
 
 struct event_data {
@@ -36,7 +38,18 @@ struct event_data {
 
 void timer_cb(void *udata)
 {
-    printf("Timer cb called!\n");
+    struct timer_data *tdata = udata;
+    int bytes;
+
+    printf("Timer cb called! msg is %s\n", tdata->msg);
+
+    bytes = write(tdata->fd, tdata->msg, tdata->len);
+    if (bytes <= 0) {
+        printf("Failed to send\n");
+    }
+
+    free(tdata->msg);
+    free(tdata);
 }
 
 void ev_cb(void *udata)
@@ -61,18 +74,21 @@ void ev_cb(void *udata)
 
     printf("Received data %.*s, %d bytes\n", bytes - 1, buf, bytes);
 
-    if (strcmp(buf, CMD) == 0) {
+    if (strncmp(buf, CMD, sizeof(CMD)-1) == 0) {
         tdata = calloc(1, sizeof(*tdata));
-        if (strcmp(buf + sizeof(CMD), "delay: ") == 0) {
-            delay = (int)strtol(buf + sizeof(CMD) + sizeof("delay: "), &p, 10);
+        printf("Received data %.*s, %d bytes\n", bytes - sizeof(CMD) - 1, buf + sizeof(CMD) - 1, bytes);
+        if (strncmp(buf + sizeof(CMD) - 1, "delay: ", sizeof("delay: ")-1) == 0) {
+            delay = (int)strtol(buf + sizeof(CMD) - 1 + sizeof("delay: ") - 1, &p, 10);
             if (errno != 0) {
                 printf("Error receiving delay message\n");
                 return;
             }
-            printf("Message \"%s\" size is %ld\n", p, buf + bytes - p);
+            printf("Message \"%s\" size is %ld, delay is %d\n", p, buf + bytes - p, delay);
             tdata->msg = malloc(buf + bytes - p);
+            tdata->fd = data->fd;
+            tdata->len = buf + bytes - p;
             strlcpy(tdata->msg, p, BUF_SIZE);
-            tinyev_add_timer(delay, 0, &tdata, timer_cb);
+            tinyev_add_timer(delay, 0, tdata, timer_cb);
         } else if (strcmp(buf + sizeof(CMD), "periodic: ") == 0) {
             delay = (int)strtol(buf + sizeof(CMD) + sizeof("periodic: "), &p, 10);
             if (errno != 0) {
@@ -82,8 +98,8 @@ void ev_cb(void *udata)
             printf("Message \"%s\" size is %ld\n", p, buf + bytes - p);
             tdata->msg = malloc(buf + bytes - p);
             strlcpy(tdata->msg, p, BUF_SIZE);
-            tinyev_add_periodic(delay, 0, &tdata, timer_cb);
-        } else if (strcmp(buf + sizeof(CMD), "stop") == 0) {
+            tinyev_add_periodic(delay, 0, tdata, timer_cb);
+        } else if (strncmp(buf + sizeof(CMD) - 1, "stop", sizeof("stop")-1) == 0) {
             goto err;
         }
     } else {
@@ -144,7 +160,7 @@ int main(int argc, char *argv[])
     if (argc > 1) {
         port = atoi(argv[1]);
         if (errno != 0 || port > MAX_PORT || port < MIN_PORT) {
-            printf("Illigel port, use default %d\n", DEFAULT_PORT);
+            printf("Illigel port, using default %d\n", DEFAULT_PORT);
             port = 0;
         } else {
             // No error

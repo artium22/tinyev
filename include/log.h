@@ -1,5 +1,5 @@
-#ifndef log_h
-#define log_h
+#ifndef LOG_H
+#define LOG_H
 
 #include <stdio.h>
 
@@ -18,4 +18,4 @@ void log_init(char *path);
 
 void log_cleanup();
 
-#endif /* log_h */
+#endif /* LOG_H */

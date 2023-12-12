@@ -33,10 +33,13 @@ endif
 
 tests = get_option('tests')
 if tests
+    test_server_src = []
+    test_client_src = []
     tests_deps = libtinyev_dep
+
     if not cc.has_function('strlcpy', prefix: '#include <string.h>')
-        test_server_src = ['tests/strlcpy.c']
-        test_client_src = ['tests/strlcpy.c']
+        test_server_src += ['tests/strlcpy.c']
+        test_client_src += ['tests/strlcpy.c']
     endif
 
     # Main test, simple usage
