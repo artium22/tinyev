@@ -6,6 +6,16 @@
 
 #define TINYEV_MAX_TNAME_LEN 16
 
+/* List of events that tinyev supports.
+    Note: setting up send event will cause the CPU 100% usage
+    since it'll wake the process up ALL OF THE TIME! */
+enum tinyev_events {
+    TEV_RECV = 1 << 0,      // Ready to read
+    TEV_SEND = 1 << 1,      // Ready to send
+    TEV_CLOSE = 1 << 2,     // Close event
+    TEV_ERROR = 1 << 3      // Something went bad
+};
+
 /**
  * @brief prototype for event loop user callback function,
  * receives the data to call this cb with - user data.
@@ -63,15 +73,24 @@ void* tinyev_add_timer(int sec, int msec, void* data, event_cb cb);
 void* tinyev_add_periodic(int sec, int msec, void* data, event_cb cb);
 
 /**
+ * @brief remove timer from timers list. Can either periodic or not.
+ * 
+ * @param tobj timer object pointer.
+ */
+void tinyev_del_timer(void* tobj);
+
+/**
  * @brief adds file descriptor to poll on. All of the file descriptors
  * will be non blocking at the end of this function!
  * 
- * @param fd    the file descriptor to poll on
- * @param data  user data.
- * @param cb    user call back to upon any event, with the user data.
- * @return int 
+ * @param fd        the file descriptor to poll on
+ * @param data      user data.
+ * @param cb        user call back to upon any event, with the user data.
+ * @param events    which events to track for this fd.
+ * @param err       pointer to error as return code.
+ * @return void*    returns pointer to new event object.
  */
-void* tinyev_add_fd(int fd, void* data, event_cb cb, int *err);
+void *tinyev_add_fd(int fd, void* data, event_cb cb, enum tinyev_events events, int *err);
 
 /**
  * @brief remove fd and close it.

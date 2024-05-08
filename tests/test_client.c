@@ -128,14 +128,14 @@ conn:
     }
 
     data_fd.fd = fd;
-    data_fd.tev = tinyev_add_fd(fd, &data_fd, ev_cb, &rc);
+    data_fd.tev = tinyev_add_fd(fd, &data_fd, ev_cb, TEV_RECV | TEV_CLOSE | TEV_ERROR, &rc);
     if (!data_fd.tev) {
         printf("Failed to add fd, err %d\n", rc);
         exit(EXIT_FAILURE);
     }
 
     data_stdio.fd = STDIN_FILENO;
-    data_stdio.tev = tinyev_add_fd(STDIN_FILENO, &data_stdio, ev_cb, &rc);
+    data_stdio.tev = tinyev_add_fd(STDIN_FILENO, &data_stdio, ev_cb, TEV_RECV | TEV_CLOSE | TEV_ERROR, &rc);
     if (!data_stdio.tev) {
         printf("Failed to add stdio fd, err %d\n", rc);
         exit(EXIT_FAILURE);

@@ -113,6 +113,7 @@ static void* do_add_timer(int sec, int msec, void* data, bool per, event_cb cb)
     uint64_t now = time_in_millisecs();
 
     if (!to) {
+        SLOG("Failed allocating new timer");
         return NULL;
     }
 
@@ -132,6 +133,29 @@ static void* do_add_timer(int sec, int msec, void* data, bool per, event_cb cb)
     watched_timers++;
 
     return to;
+}
+
+static void do_del_timer(void *timer)
+{
+    struct timer_obj *tmp_t, *tmp_p = NULL;
+    struct timer_obj *td = timer;
+
+    if (!td) {
+        return;
+    }
+
+    tmp_t = timers;
+    while (tmp_t && td != tmp_t) {
+        tmp_p = tmp_t;
+        tmp_t = tmp_t->next;
+    }
+
+    if (!tmp_t) {
+        /* Was not found. */
+    } else {
+        tmp_p = tmp_t->next;
+        free(tmp_t);
+    }
 }
 
 static void check_timers()
@@ -167,6 +191,17 @@ static void check_timers()
     }
 }
 
+static int tev_to_events(int events)
+{
+    int res = EPOLLPRI;
+
+    if (events & TEV_RECV) res |= EPOLLIN;
+    if (events & TEV_SEND) res |= EPOLLOUT;
+    if (events & TEV_ERROR) res |= EPOLLERR;
+
+    return res;
+}
+
 int tinyev_poll(int msec)
 {
     struct event_data *fd_d;
@@ -196,22 +231,17 @@ void* tinyev_add_timer(int sec, int msec, void* data, event_cb cb)
     return do_add_timer(sec, msec, data, false, cb);
 }
 
-int tinyev_del_timer(void* tobj)
-{
-    return TINYEV_ERR_OK;
-}
-
 void* tinyev_add_periodic(int sec, int msec, void* data, event_cb cb)
 {
     return do_add_timer(sec, msec, data, true, cb);
 }
 
-int tinyev_del_periodic(void* tobj)
+void tinyev_del_timer(void* tobj)
 {
-    return TINYEV_ERR_OK;
+    do_del_timer(tobj);
 }
 
-void *tinyev_add_fd(int fd, void* data, event_cb cb, int *err)
+void *tinyev_add_fd(int fd, void* data, event_cb cb, enum tinyev_events events, int *err)
 {
     struct epoll_event ev;
     struct event_data *fd_d;
@@ -232,7 +262,7 @@ void *tinyev_add_fd(int fd, void* data, event_cb cb, int *err)
         return NULL;
     }
 
-    ev.events = EPOLLIN|EPOLLPRI|EPOLLERR;
+    ev.events = tev_to_events(events);
     ev.data.fd = fd;
     ev.data.ptr = fd_d;
     if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &ev) == -1) {
@@ -272,7 +302,7 @@ int tinyev_init()
 
     epoll_fd = epoll_create1(0);
     if (epoll_fd == -1) {
-        SLOG("epoll_create1");
+        SLOG("Failed epoll_create1");
         return TINYEV_ERR_INIT;
     }
 

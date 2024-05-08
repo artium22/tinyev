@@ -137,7 +137,7 @@ void listen_cb(void *udata)
 
     new = malloc(sizeof(struct event_data));
     new->fd = client_sock;
-    new->tev = tinyev_add_fd(client_sock, new, ev_cb, &err);
+    new->tev = tinyev_add_fd(client_sock, new, ev_cb, TEV_RECV | TEV_CLOSE | TEV_ERROR, &err);
     if (!new->tev) {
         printf("Failed to add fd, err %d", err);
         return;
@@ -196,7 +196,7 @@ int main(int argc, char *argv[])
 
     data.fd = fd;
 
-    data.tev = tinyev_add_fd(fd, &data, listen_cb, &err);
+    data.tev = tinyev_add_fd(fd, &data, listen_cb, TEV_RECV | TEV_CLOSE | TEV_ERROR, &err);
     if (!data.tev) {
         printf("Failed to add fd, err %d", err);
         return -1;
